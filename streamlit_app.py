@@ -38,7 +38,7 @@ def plot_points_route(points: Dict[str, tuple], order: Optional[List[str]] = Non
         ))
         
     fig.update_layout(
-        title=title, template="plotly_dark", height=480,
+        title=title, template="plotly_dark", height=450,
         margin=dict(l=10, r=10, t=40, b=10)
     )
     return fig
@@ -69,7 +69,7 @@ def plot_graph(points: Dict[str, tuple], edges: Dict, path: Optional[List[str]],
     ))
                              
     fig.update_layout(
-        title=title, template="plotly_dark", height=480,
+        title=title, template="plotly_dark", height=450,
         margin=dict(l=10, r=10, t=40, b=10)
     )
     return fig
@@ -98,7 +98,11 @@ with st.sidebar:
     seed = st.number_input("Semilla (Seed)", value=3, step=1)
     generate = st.button("Generar escenario", type="primary")
 
-if "scenario" not in st.session_state or generate:
+# REGENERA AUTOMÁTICAMENTE EL ESCENARIO SI SE CAMBIA DE MISIÓN O SE PRESIONA BOTÓN
+if ("scenario" not in st.session_state 
+    or generate 
+    or st.session_state.get("last_mission") != mission):
+    st.session_state.last_mission = mission
     if mission == 1: sc = rx.preparar_tsp(int(seed), int(stars)); st.session_state.meta = {"type": "points"}
     elif mission == 2: sc = rx.preparar_cvrp(int(seed), int(stars)); st.session_state.meta = {"type": "points"}
     elif mission == 3: sc = rx.preparar_vrptw(int(seed), int(stars)); st.session_state.meta = {"type": "points"}
@@ -135,34 +139,35 @@ with col_left:
             use_container_width=True
         )
     elif meta["type"] == "knapsack":
-        st.metric("Capacidad de la Mochila", f"{scenario['capacidad']} kg")
+        st.metric("📦 Capacidad de la Mochila", f"{scenario['capacidad']} kg")
 
 with col_right:
-    st.markdown("### Información y Respuesta")
+    st.markdown("### Datos de la Misión y Respuesta")
     
-    # INFORMACIÓN DE LA MISIÓN
+    # DATOS DE LA MISIÓN
     if mission == 1:
         st.write("**Puntos a visitar:**", ", ".join(scenario["entregas"].keys()))
         
     elif mission == 2:
         st.metric("📦 Capacidad Máxima por Vehículo", f"{scenario['capacidad']} unidades")
         st.write("**Demandas por punto:**")
-        cols_d = st.columns(min(len(scenario["demanda"]), 5))
-        for idx, (k, v) in enumerate(scenario["demanda"].items()):
-            cols_d[idx % len(cols_d)].metric(label=f"Punto {k}", value=f"{v} u.")
+        st.dataframe(
+            [{"Punto": k, "Demanda": v} for k, v in scenario["demanda"].items()],
+            use_container_width=True, height=140
+        )
             
     elif mission == 3:
         st.write("**Ventanas de Tiempo [Inicio, Fin]:**")
         st.dataframe(
             [{"Punto": k, "Ventana": f"[{v[0]}, {v[1]}]"} for k, v in scenario["ventanas"].items()],
-            use_container_width=True, height=160
+            use_container_width=True, height=140
         )
         
     elif mission == 4:
         st.write("**Lista de Objetos Disponibles:**")
         st.dataframe(
             [{"Objeto": k, "Valor": v[0], "Peso": v[1]} for k, v in scenario["items"].items()],
-            use_container_width=True, height=180
+            use_container_width=True, height=150
         )
         
     elif mission == 5:
@@ -172,19 +177,19 @@ with col_right:
         st.write("**Conexiones disponibles (Nodos y Pesos):**")
         st.dataframe(
             [{"Conexión": f"{a} <-> {b}", "Distancia": w} for key, w in scenario["aristas"].items() for a, b in [tuple(key)]],
-            use_container_width=True, height=160
+            use_container_width=True, height=140
         )
         
     elif mission == 6:
-        st.metric("Vehículos Disponibles", f"{scenario['k']} unidades")
+        st.metric("🚗 Vehículos Disponibles", f"{scenario['k']} unidades")
         st.write("**Puntos a repartir:**", ", ".join(scenario["entregas"].keys()))
         
     elif mission == 7:
-        st.metric("Presupuesto Máximo de Distancia", f"{scenario['presupuesto']} km")
+        st.metric("🎯 Presupuesto Máximo de Distancia", f"{scenario['presupuesto']} km")
         st.write("**Premios por punto:**")
         st.dataframe(
             [{"Punto": k, "Premio": v} for k, v in scenario["premio"].items()],
-            use_container_width=True, height=160
+            use_container_width=True, height=140
         )
 
     st.markdown("---")
@@ -211,7 +216,7 @@ with col_right:
                     st.success(f"Puntuación Obtenida: {score}/100 | Distancia: {dist:.2f} km | Tardanza: {tard:.2f} h")
 
     elif mission == 2:
-        text = st.text_area("Ingresa los viajes (una línea por vehículo):", value="", height=100, key="in_2")
+        text = st.text_area("Ingresa los viajes (una línea por vehículo):", value="", height=90, key="in_2")
         if st.button("Evaluar Asignación", type="primary"):
             viajes = [parse_tokens(ln) for ln in text.splitlines() if ln.strip()]
             all_nodes = [n for v in viajes for n in v]
@@ -261,7 +266,7 @@ with col_right:
                     st.error("Conexión no válida entre uno o más nodos consecutivos.")
 
     elif mission == 6:
-        text = st.text_area(f"Ingresa las rutas para cada uno de los {scenario['k']} vehículos (una línea por vehículo):", value="", height=100, key="in_6")
+        text = st.text_area(f"Ingresa las rutas para cada uno de los {scenario['k']} vehículos (una línea por vehículo):", value="", height=90, key="in_6")
         if st.button("Evaluar Flota", type="primary"):
             grupos = [parse_tokens(ln) for ln in text.splitlines() if ln.strip()]
             puntos, k = scenario["entregas"], scenario["k"]
